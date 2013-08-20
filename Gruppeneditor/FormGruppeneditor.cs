@@ -243,18 +243,25 @@ namespace Gruppeneditor
 
         private void buttonSave_Click(object sender, EventArgs e)
         {
-            DirectorySearcher search = GetDirectorySearcher();
-            search.Filter = "(distinguishedName=" + GroupDNTable[comboBoxGruppe.SelectedItem.ToString().ToLowerInvariant()] + ")";
-            SearchResult result = search.FindOne();
-            DirectoryEntry entry = result.GetDirectoryEntry();
-            entry.Properties["member"].Clear();
-            
-            foreach (string distinguishedName in GroupMember.Values)
+            try
             {
-                entry.Properties["member"].Add(distinguishedName);
+                DirectorySearcher search = GetDirectorySearcher();
+                search.Filter = "(distinguishedName=" + GroupDNTable[comboBoxGruppe.SelectedItem.ToString().ToLowerInvariant()] + ")";
+                SearchResult result = search.FindOne();
+                DirectoryEntry entry = result.GetDirectoryEntry();
+                entry.Properties["member"].Clear();
+
+                foreach (string distinguishedName in GroupMember.Values)
+                {
+                    entry.Properties["member"].Add(distinguishedName);
+                }
+                entry.CommitChanges();
+                buttonSave.Enabled = false;
             }
-            entry.CommitChanges();
-            buttonSave.Enabled = false;
+            catch (Exception e)
+            {
+                showError(e);
+            }
         }
 
         private void showError(Exception e)
