@@ -258,9 +258,9 @@ namespace Gruppeneditor
                 entry.CommitChanges();
                 buttonSave.Enabled = false;
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                showError(e);
+                showError(ex);
             }
         }
 
