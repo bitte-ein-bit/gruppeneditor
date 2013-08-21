@@ -165,7 +165,8 @@ namespace Gruppeneditor
 
         private DirectorySearcher GetDirectorySearcher()
         {
-            DirectoryEntry ldapConnection = new DirectoryEntry("LDAP://test.local");
+            //DirectoryEntry ldapConnection = new DirectoryEntry("LDAP://test.local");
+            DirectoryEntry ldapConnection = new DirectoryEntry();
             ldapConnection.AuthenticationType = AuthenticationTypes.Secure;
             // TODO
             //ldapConnection.Username = "LArm@test.local";
