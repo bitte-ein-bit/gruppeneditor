@@ -66,9 +66,12 @@ namespace Gruppeneditor
                 {
                     if (result.Enabled == true && result.EmailAddress != null && result.DisplayName != null)
                     {
-                        string tmp = String.Format("{0}, {1}", result.Surname, result.GivenName);
-                        UserDNTable.Add(tmp.ToLowerInvariant(), result.DistinguishedName);
-                        comboBoxMember.AutoCompleteCustomSource.Add(tmp);
+                        string tmp = String.Format("{0}", result.DisplayName);
+                        if (!UserDNTable.ContainsKey(tmp.ToLowerInvariant()))
+                        {
+                            UserDNTable.Add(tmp.ToLowerInvariant(), result.DistinguishedName);
+                            comboBoxMember.AutoCompleteCustomSource.Add(tmp);
+                        }
                     }
                 }
                 search.Dispose();
@@ -108,7 +111,7 @@ namespace Gruppeneditor
                 DirectorySearcher search = GetDirectorySearcher();
                 string dn = FindMyDN();
                 if (dn == null) return;
-                search.Filter = "(managedBy=" + dn + ")";
+                search.Filter = "(&(objectClass=group)(managedBy=" + dn + "))";
                 comboBoxGruppe.Items.Clear();
                 GroupDNTable.Clear();
                 foreach (SearchResult result in search.FindAll())
@@ -188,7 +191,14 @@ namespace Gruppeneditor
             if (!GroupMember.ContainsKey(displayName.ToLowerInvariant()))
             {
                 ListViewItem lvi = new ListViewItem(displayName);
-                lvi.SubItems.Add(user.Properties["mail"][0].ToString().ToLowerInvariant());
+                if (user.Properties.Contains("mail"))
+                {
+                    lvi.SubItems.Add(user.Properties["mail"][0].ToString().ToLowerInvariant());
+                }
+                else
+                {
+                    lvi.SubItems.Add("keine Email Adresse vorhanden");
+                }
                 listViewMember.Items.Add(lvi);
                 GroupMember.Add(displayName.ToLowerInvariant(), distinguishedName);
             }
@@ -239,7 +249,7 @@ namespace Gruppeneditor
             {
                 removeMember(item.Text);
             }
-            buttonSave.Enabled = false;
+            buttonSave.Enabled = true;
         }
 
         private void buttonSave_Click(object sender, EventArgs e)
