@@ -219,7 +219,7 @@ namespace Gruppeneditor
                     item.Remove();
                 }
             }
-            GroupMember.Remove(displayName);
+            GroupMember.Remove(displayName.ToLowerInvariant());
         }
 
         private void buttonAdd_Click(object sender, EventArgs e)
