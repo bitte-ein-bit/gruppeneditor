@@ -29,7 +29,12 @@ namespace Gruppeneditor
         public FormGuppeneditor()
         {
             InitializeComponent();
-
+            FormSplash.setProgress(5);
+            FindMyMemberships();
+            FormSplash.setProgress(90);
+            FindAllUser();
+            FormSplash.setProgress(95);
+            FindMyGroups();
         }
 
         private Hashtable UserDNTable = new Hashtable();
@@ -317,9 +322,7 @@ namespace Gruppeneditor
 
         private void FormGroupEditor_Load(object sender, EventArgs e)
         {
-            FindMyMemberships();
-            FindAllUser();
-            FindMyGroups();
+            this.Activate();
             if (GroupDNTable.Count == 0)
             {
                 MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);

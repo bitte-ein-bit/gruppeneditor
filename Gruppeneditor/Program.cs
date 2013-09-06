@@ -15,7 +15,10 @@ namespace Gruppeneditor
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FormGuppeneditor());
+            FormSplash.ShowSplashScreen();
+            FormGuppeneditor mainForm = new FormGuppeneditor(); //this takes ages
+            FormSplash.CloseForm();
+            Application.Run(mainForm);
         }
     }
 }
