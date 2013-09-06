@@ -19,6 +19,8 @@ using System.Text;
 using System.Windows.Forms;
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices;
+using System.Security.Principal;
+using System.Diagnostics;
 
 namespace Gruppeneditor
 {
@@ -27,11 +29,13 @@ namespace Gruppeneditor
         public FormGuppeneditor()
         {
             InitializeComponent();
+
         }
 
         private Hashtable UserDNTable = new Hashtable();
         private Hashtable GroupDNTable = new Hashtable();
         private Hashtable GroupMember = new Hashtable();
+        private Hashtable ManagedByMe = new Hashtable();
 
         private System.Security.Principal.WindowsIdentity GetCurrentUser()
         {
@@ -104,6 +108,22 @@ namespace Gruppeneditor
             }
         }
 
+        private void FindMyMemberships()
+        {
+            DirectorySearcher search = GetDirectorySearcher();
+            foreach (IdentityReference group in GetCurrentUser().Groups) {
+                search.Filter = "(&(objectClass=group)(objectSid=" + group.Value + "))";
+                SearchResult gr = search.FindOne();
+                if (gr != null)
+                {
+                    Console.WriteLine("Group: " + group.Value);
+                    Console.WriteLine("Group: " + gr.Properties["distinguishedName"][0]);
+                    ManagedByMe.Add(group.Value, gr.Properties["distinguishedName"][0].ToString());
+                }
+            }
+        }
+
+
         private void FindMyGroups()
         {
             try
@@ -111,7 +131,21 @@ namespace Gruppeneditor
                 DirectorySearcher search = GetDirectorySearcher();
                 string dn = FindMyDN();
                 if (dn == null) return;
-                search.Filter = "(&(objectClass=group)(managedBy=" + dn + "))";
+                string filter = "";
+                if (ManagedByMe.Count > 0)
+                {
+                    filter = "(|(managedBy=" + dn + ")";
+                    foreach (String s in ManagedByMe.Values)
+                    {
+                        filter += "(managedBy=" + s + ")";
+                    }
+                    filter += ")";
+                }
+                else
+                {
+                    filter = "(managedBy=" + dn + ")";
+                }
+                search.Filter = "(&(objectClass=group)" + filter + ")";
                 comboBoxGruppe.Items.Clear();
                 GroupDNTable.Clear();
                 foreach (SearchResult result in search.FindAll())
@@ -283,6 +317,7 @@ namespace Gruppeneditor
 
         private void FormGroupEditor_Load(object sender, EventArgs e)
         {
+            FindMyMemberships();
             FindAllUser();
             FindMyGroups();
             if (GroupDNTable.Count == 0)
