@@ -222,11 +222,14 @@ namespace Gruppeneditor
 
         private void comboBoxGruppe_SelectedIndexChanged(object sender, EventArgs e)
         {
-            comboBoxGruppe.Items.Remove("bitte wählen");
-            GetGroupMember(comboBoxGruppe.SelectedItem.ToString());
-            groupBoxMember.Enabled = true;
-            buttonSave.Enabled = false;
-            buttonAdd.Enabled = false;
+            if (comboBoxGruppe.SelectedItem.ToString() != "bitte wählen")
+            {
+                comboBoxGruppe.Items.Remove("bitte wählen");
+                GetGroupMember(comboBoxGruppe.SelectedItem.ToString());
+                groupBoxMember.Enabled = true;
+                buttonSave.Enabled = false;
+                buttonAdd.Enabled = false;
+            }
         }
 
         private void addUserToMemberList(string distinguishedName)
