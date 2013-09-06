@@ -251,6 +251,10 @@ namespace Gruppeneditor
                 listViewMember.Items.Add(lvi);
                 GroupMember.Add(displayName.ToLowerInvariant(), distinguishedName);
             }
+            else
+            {
+                MessageBox.Show("Benutzer ist bereits Mitglied", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private void clearMemberList()
