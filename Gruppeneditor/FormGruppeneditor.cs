@@ -29,7 +29,7 @@ namespace Gruppeneditor
         public FormGuppeneditor()
         {
             InitializeComponent();
-            FormSplash.setProgress(5);
+            FormSplash.setProgress(50);
             FindMyMemberships();
             FormSplash.setProgress(90);
             FindAllUser();
@@ -163,6 +163,10 @@ namespace Gruppeneditor
                     }
                     GroupDNTable.Add(name.ToLowerInvariant(), result.Properties["distinguishedName"][0]);
                 }
+                comboBoxGruppe.Items.Add("bitte wählen");
+                comboBoxGruppe.SelectedIndexChanged -= this.comboBoxGruppe_SelectedIndexChanged;
+                comboBoxGruppe.SelectedIndex = comboBoxGruppe.Items.IndexOf("bitte wählen");
+                comboBoxGruppe.SelectedIndexChanged += this.comboBoxGruppe_SelectedIndexChanged;
             }
             catch (Exception e)
             {
@@ -218,8 +222,11 @@ namespace Gruppeneditor
 
         private void comboBoxGruppe_SelectedIndexChanged(object sender, EventArgs e)
         {
+            comboBoxGruppe.Items.Remove("bitte wählen");
             GetGroupMember(comboBoxGruppe.SelectedItem.ToString());
             groupBoxMember.Enabled = true;
+            buttonSave.Enabled = false;
+            buttonAdd.Enabled = false;
         }
 
         private void addUserToMemberList(string distinguishedName)
@@ -280,6 +287,7 @@ namespace Gruppeneditor
             {
                 buttonAdd_Click(this, null);
             }
+            buttonAdd.Enabled = true;
         }
 
         private void buttonRemove_Click(object sender, EventArgs e)
@@ -322,11 +330,34 @@ namespace Gruppeneditor
 
         private void FormGroupEditor_Load(object sender, EventArgs e)
         {
-            this.Activate();
             if (GroupDNTable.Count == 0)
             {
                 MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void listViewMember_ItemChecked(object sender, ItemCheckedEventArgs e)
+        {
+            if (listViewMember.CheckedItems.Count > 0)
+            {
+                buttonRemove.Enabled = true;
+            }
+            else
+            {
+                buttonRemove.Enabled = false;
+            }
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            this.Activate();
+            timer1.Enabled = false;
+        }
+
+        private void FormGuppeneditor_Shown(object sender, EventArgs e)
+        {
+            FormSplash.setProgress(100);
+            timer1.Enabled = true;
         }
         
     }

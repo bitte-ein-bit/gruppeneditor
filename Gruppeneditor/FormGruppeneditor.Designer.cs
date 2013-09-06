@@ -41,6 +41,7 @@
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.buttonSave = new System.Windows.Forms.Button();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.groupBoxMember.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -59,6 +60,7 @@
             this.comboBoxGruppe.Size = new System.Drawing.Size(464, 21);
             this.comboBoxGruppe.Sorted = true;
             this.comboBoxGruppe.TabIndex = 2;
+            this.toolTip1.SetToolTip(this.comboBoxGruppe, "Wählen Sie die Gruppe, die Sie verwalten möchten.");
             this.comboBoxGruppe.SelectedIndexChanged += new System.EventHandler(this.comboBoxGruppe_SelectedIndexChanged);
             // 
             // label1
@@ -96,6 +98,7 @@
             this.buttonAdd.Size = new System.Drawing.Size(75, 23);
             this.buttonAdd.TabIndex = 6;
             this.buttonAdd.Text = "hinzufügen";
+            this.toolTip1.SetToolTip(this.buttonAdd, "Fügt den gesuchten Nutzer hinzu.");
             this.buttonAdd.UseVisualStyleBackColor = true;
             this.buttonAdd.Click += new System.EventHandler(this.buttonAdd_Click);
             // 
@@ -119,6 +122,7 @@
             this.comboBoxMember.Name = "comboBoxMember";
             this.comboBoxMember.Size = new System.Drawing.Size(369, 21);
             this.comboBoxMember.TabIndex = 4;
+            this.toolTip1.SetToolTip(this.comboBoxMember, "Suchen Sie hier nach neuen Mitglieder für die ausgewählte Gruppe.");
             this.comboBoxMember.KeyDown += new System.Windows.Forms.KeyEventHandler(this.comboBoxMember_KeyDown);
             // 
             // buttonRemove
@@ -129,7 +133,7 @@
             this.buttonRemove.Size = new System.Drawing.Size(75, 23);
             this.buttonRemove.TabIndex = 3;
             this.buttonRemove.Text = "löschen";
-            this.toolTip1.SetToolTip(this.buttonRemove, "Markierte löschen");
+            this.toolTip1.SetToolTip(this.buttonRemove, "Löscht die markierten Nutzer aus der Gruppe.");
             this.buttonRemove.UseVisualStyleBackColor = true;
             this.buttonRemove.Click += new System.EventHandler(this.buttonRemove_Click);
             // 
@@ -151,6 +155,7 @@
             this.listViewMember.TabIndex = 2;
             this.listViewMember.UseCompatibleStateImageBehavior = false;
             this.listViewMember.View = System.Windows.Forms.View.Details;
+            this.listViewMember.ItemChecked += new System.Windows.Forms.ItemCheckedEventHandler(this.listViewMember_ItemChecked);
             // 
             // columnHeader1
             // 
@@ -171,9 +176,14 @@
             this.buttonSave.Size = new System.Drawing.Size(75, 23);
             this.buttonSave.TabIndex = 5;
             this.buttonSave.Text = "Speichern";
-            this.toolTip1.SetToolTip(this.buttonSave, "Speichert die Änderungen an den Mitglieder dieser Gruppe");
+            this.toolTip1.SetToolTip(this.buttonSave, "Speichert alle vorgenommen Änderungen an den Mitglieder dieser Gruppe.");
             this.buttonSave.UseVisualStyleBackColor = true;
             this.buttonSave.Click += new System.EventHandler(this.buttonSave_Click);
+            // 
+            // timer1
+            // 
+            this.timer1.Interval = 500;
+            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
             // 
             // FormGuppeneditor
             // 
@@ -185,8 +195,10 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.comboBoxGruppe);
             this.Name = "FormGuppeneditor";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Gruppeneditor";
             this.Load += new System.EventHandler(this.FormGroupEditor_Load);
+            this.Shown += new System.EventHandler(this.FormGuppeneditor_Shown);
             this.groupBoxMember.ResumeLayout(false);
             this.groupBoxMember.PerformLayout();
             this.ResumeLayout(false);
@@ -208,6 +220,7 @@
         private System.Windows.Forms.Button buttonSave;
         private System.Windows.Forms.Button buttonAdd;
         private System.Windows.Forms.ToolTip toolTip1;
+        private System.Windows.Forms.Timer timer1;
 
     }
 }

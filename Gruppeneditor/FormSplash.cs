@@ -43,11 +43,10 @@ namespace Gruppeneditor
         }
 
         static public void CloseForm()
-        {
-            //System.Threading.Thread.Sleep(1000);
+        {   
             try
             {
-                splashForm.Invoke(new CloseDelegate(FormSplash.CloseFormInternal));
+                //splashForm.Invoke(new CloseDelegate(FormSplash.CloseFormInternal));
             }
             catch (Exception e)
             {
@@ -69,7 +68,20 @@ namespace Gruppeneditor
             if (progressBar1.Value < progress)
             {
                 progressBar1.Value += 5;
+                if (progressBar1.Value >= 100)
+                {
+                    timer1.Enabled = false;
+                    timer1.Tick -= timer1_Tick;
+                    timer1.Tick += timer1_Tick2;
+                    timer1.Interval = 1000;
+                    timer1.Enabled = true;
+                }
             }
+        }
+
+        private void timer1_Tick2(object sender, EventArgs e)
+        {
+            this.Close();
         }
 
 
