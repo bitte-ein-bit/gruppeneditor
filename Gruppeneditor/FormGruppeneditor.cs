@@ -228,7 +228,14 @@ namespace Gruppeneditor
                 GetGroupMember(comboBoxGruppe.SelectedItem.ToString());
                 groupBoxMember.Enabled = true;
                 buttonSave.Enabled = false;
-                buttonAdd.Enabled = false;
+                if (comboBoxMember.Text.Length == 0)
+                {
+                    buttonAdd.Enabled = false;
+                }
+                if (!UserDNTable.ContainsKey(comboBoxMember.Text.ToLowerInvariant()))
+                {
+                    buttonAdd.Enabled = false;
+                }
             }
         }
 
@@ -366,6 +373,6 @@ namespace Gruppeneditor
             FormSplash.setProgress(100);
             timer1.Enabled = true;
         }
-        
+
     }
 }
