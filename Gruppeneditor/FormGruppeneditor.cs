@@ -19,6 +19,8 @@ using System.Text;
 using System.Windows.Forms;
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices;
+using System.Security.Principal;
+using System.Diagnostics;
 
 namespace Gruppeneditor
 {
@@ -27,11 +29,18 @@ namespace Gruppeneditor
         public FormGuppeneditor()
         {
             InitializeComponent();
+            FormSplash.setProgress(50);
+            FindMyMemberships();
+            FormSplash.setProgress(90);
+            FindAllUser();
+            FormSplash.setProgress(95);
+            FindMyGroups();
         }
 
         private Hashtable UserDNTable = new Hashtable();
         private Hashtable GroupDNTable = new Hashtable();
         private Hashtable GroupMember = new Hashtable();
+        private Hashtable ManagedByMe = new Hashtable();
 
         private System.Security.Principal.WindowsIdentity GetCurrentUser()
         {
@@ -41,15 +50,11 @@ namespace Gruppeneditor
         private string GetSamAccountName()
         {
             String tmp = GetCurrentUser().Name;
-            // TODO
-            //tmp = "TEST\\LArm";
             return tmp.Substring(tmp.LastIndexOf('\\'));
         }
 
         private PrincipalContext GetPrincipalContext()
         {
-            // TODO
-            //return new PrincipalContext(ContextType.Domain, "test.local", "TEST\\LArm", "abc123!");
             return new PrincipalContext(ContextType.Domain);
         }
 
@@ -66,9 +71,12 @@ namespace Gruppeneditor
                 {
                     if (result.Enabled == true && result.EmailAddress != null && result.DisplayName != null)
                     {
-                        string tmp = String.Format("{0}, {1}", result.Surname, result.GivenName);
-                        UserDNTable.Add(tmp.ToLowerInvariant(), result.DistinguishedName);
-                        comboBoxMember.AutoCompleteCustomSource.Add(tmp);
+                        string tmp = String.Format("{0}", result.DisplayName);
+                        if (!UserDNTable.ContainsKey(tmp.ToLowerInvariant()))
+                        {
+                            UserDNTable.Add(tmp.ToLowerInvariant(), result.DistinguishedName);
+                            comboBoxMember.AutoCompleteCustomSource.Add(tmp);
+                        }
                     }
                 }
                 search.Dispose();
@@ -101,6 +109,22 @@ namespace Gruppeneditor
             }
         }
 
+        private void FindMyMemberships()
+        {
+            DirectorySearcher search = GetDirectorySearcher();
+            foreach (IdentityReference group in GetCurrentUser().Groups) {
+                search.Filter = "(&(objectClass=group)(objectSid=" + group.Value + "))";
+                SearchResult gr = search.FindOne();
+                if (gr != null)
+                {
+                    Console.WriteLine("Group: " + group.Value);
+                    Console.WriteLine("Group: " + gr.Properties["distinguishedName"][0]);
+                    ManagedByMe.Add(group.Value, gr.Properties["distinguishedName"][0].ToString());
+                }
+            }
+        }
+
+
         private void FindMyGroups()
         {
             try
@@ -108,7 +132,21 @@ namespace Gruppeneditor
                 DirectorySearcher search = GetDirectorySearcher();
                 string dn = FindMyDN();
                 if (dn == null) return;
-                search.Filter = "(managedBy=" + dn + ")";
+                string filter = "";
+                if (ManagedByMe.Count > 0)
+                {
+                    filter = "(|(managedBy=" + dn + ")";
+                    foreach (String s in ManagedByMe.Values)
+                    {
+                        filter += "(managedBy=" + s + ")";
+                    }
+                    filter += ")";
+                }
+                else
+                {
+                    filter = "(managedBy=" + dn + ")";
+                }
+                search.Filter = "(&(objectClass=group)" + filter + ")";
                 comboBoxGruppe.Items.Clear();
                 GroupDNTable.Clear();
                 foreach (SearchResult result in search.FindAll())
@@ -121,6 +159,10 @@ namespace Gruppeneditor
                     }
                     GroupDNTable.Add(name.ToLowerInvariant(), result.Properties["distinguishedName"][0]);
                 }
+                comboBoxGruppe.Items.Add("bitte wählen");
+                comboBoxGruppe.SelectedIndexChanged -= this.comboBoxGruppe_SelectedIndexChanged;
+                comboBoxGruppe.SelectedIndex = comboBoxGruppe.Items.IndexOf("bitte wählen");
+                comboBoxGruppe.SelectedIndexChanged += this.comboBoxGruppe_SelectedIndexChanged;
             }
             catch (Exception e)
             {
@@ -165,18 +207,28 @@ namespace Gruppeneditor
 
         private DirectorySearcher GetDirectorySearcher()
         {
-            DirectoryEntry ldapConnection = new DirectoryEntry("LDAP://test.local");
+            DirectoryEntry ldapConnection = new DirectoryEntry();
             ldapConnection.AuthenticationType = AuthenticationTypes.Secure;
-            // TODO
-            //ldapConnection.Username = "LArm@test.local";
-            //ldapConnection.Password = "abc123!";
             return new DirectorySearcher(ldapConnection);
         }
 
         private void comboBoxGruppe_SelectedIndexChanged(object sender, EventArgs e)
         {
-            GetGroupMember(comboBoxGruppe.SelectedItem.ToString());
-            groupBoxMember.Enabled = true;
+            if (comboBoxGruppe.SelectedItem.ToString() != "bitte wählen")
+            {
+                comboBoxGruppe.Items.Remove("bitte wählen");
+                GetGroupMember(comboBoxGruppe.SelectedItem.ToString());
+                groupBoxMember.Enabled = true;
+                buttonSave.Enabled = false;
+                if (comboBoxMember.Text.Length == 0)
+                {
+                    buttonAdd.Enabled = false;
+                }
+                if (!UserDNTable.ContainsKey(comboBoxMember.Text.ToLowerInvariant()))
+                {
+                    buttonAdd.Enabled = false;
+                }
+            }
         }
 
         private void addUserToMemberList(string distinguishedName)
@@ -187,9 +239,20 @@ namespace Gruppeneditor
             if (!GroupMember.ContainsKey(displayName.ToLowerInvariant()))
             {
                 ListViewItem lvi = new ListViewItem(displayName);
-                lvi.SubItems.Add(user.Properties["mail"][0].ToString().ToLowerInvariant());
+                if (user.Properties.Contains("mail"))
+                {
+                    lvi.SubItems.Add(user.Properties["mail"][0].ToString().ToLowerInvariant());
+                }
+                else
+                {
+                    lvi.SubItems.Add("keine Email Adresse vorhanden");
+                }
                 listViewMember.Items.Add(lvi);
                 GroupMember.Add(displayName.ToLowerInvariant(), distinguishedName);
+            }
+            else
+            {
+                MessageBox.Show("Benutzer ist bereits Mitglied", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -208,7 +271,7 @@ namespace Gruppeneditor
                     item.Remove();
                 }
             }
-            GroupMember.Remove(displayName);
+            GroupMember.Remove(displayName.ToLowerInvariant());
         }
 
         private void buttonAdd_Click(object sender, EventArgs e)
@@ -230,6 +293,7 @@ namespace Gruppeneditor
             {
                 buttonAdd_Click(this, null);
             }
+            buttonAdd.Enabled = true;
         }
 
         private void buttonRemove_Click(object sender, EventArgs e)
@@ -238,23 +302,30 @@ namespace Gruppeneditor
             {
                 removeMember(item.Text);
             }
-            buttonSave.Enabled = false;
+            buttonSave.Enabled = true;
         }
 
         private void buttonSave_Click(object sender, EventArgs e)
         {
-            DirectorySearcher search = GetDirectorySearcher();
-            search.Filter = "(distinguishedName=" + GroupDNTable[comboBoxGruppe.SelectedItem.ToString().ToLowerInvariant()] + ")";
-            SearchResult result = search.FindOne();
-            DirectoryEntry entry = result.GetDirectoryEntry();
-            entry.Properties["member"].Clear();
-            
-            foreach (string distinguishedName in GroupMember.Values)
+            try
             {
-                entry.Properties["member"].Add(distinguishedName);
+                DirectorySearcher search = GetDirectorySearcher();
+                search.Filter = "(distinguishedName=" + GroupDNTable[comboBoxGruppe.SelectedItem.ToString().ToLowerInvariant()] + ")";
+                SearchResult result = search.FindOne();
+                DirectoryEntry entry = result.GetDirectoryEntry();
+                entry.Properties["member"].Clear();
+
+                foreach (string distinguishedName in GroupMember.Values)
+                {
+                    entry.Properties["member"].Add(distinguishedName);
+                }
+                entry.CommitChanges();
+                buttonSave.Enabled = false;
             }
-            entry.CommitChanges();
-            buttonSave.Enabled = false;
+            catch (Exception ex)
+            {
+                showError(ex);
+            }
         }
 
         private void showError(Exception e)
@@ -265,13 +336,35 @@ namespace Gruppeneditor
 
         private void FormGroupEditor_Load(object sender, EventArgs e)
         {
-            FindAllUser();
-            FindMyGroups();
             if (GroupDNTable.Count == 0)
             {
                 MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        
+
+        private void listViewMember_ItemChecked(object sender, ItemCheckedEventArgs e)
+        {
+            if (listViewMember.CheckedItems.Count > 0)
+            {
+                buttonRemove.Enabled = true;
+            }
+            else
+            {
+                buttonRemove.Enabled = false;
+            }
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            this.Activate();
+            timer1.Enabled = false;
+        }
+
+        private void FormGuppeneditor_Shown(object sender, EventArgs e)
+        {
+            FormSplash.setProgress(100);
+            timer1.Enabled = true;
+        }
+
     }
 }
