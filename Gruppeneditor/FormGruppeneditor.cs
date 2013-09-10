@@ -50,15 +50,11 @@ namespace Gruppeneditor
         private string GetSamAccountName()
         {
             String tmp = GetCurrentUser().Name;
-            // TODO
-            //tmp = "TEST\\LArm";
             return tmp.Substring(tmp.LastIndexOf('\\'));
         }
 
         private PrincipalContext GetPrincipalContext()
         {
-            // TODO
-            //return new PrincipalContext(ContextType.Domain, "test.local", "TEST\\LArm", "abc123!");
             return new PrincipalContext(ContextType.Domain);
         }
 
@@ -211,12 +207,8 @@ namespace Gruppeneditor
 
         private DirectorySearcher GetDirectorySearcher()
         {
-            //DirectoryEntry ldapConnection = new DirectoryEntry("LDAP://test.local");
             DirectoryEntry ldapConnection = new DirectoryEntry();
             ldapConnection.AuthenticationType = AuthenticationTypes.Secure;
-            // TODO
-            //ldapConnection.Username = "LArm@test.local";
-            //ldapConnection.Password = "abc123!";
             return new DirectorySearcher(ldapConnection);
         }
 
