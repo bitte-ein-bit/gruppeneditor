@@ -20,7 +20,6 @@ using System.Windows.Forms;
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices;
 using System.Security.Principal;
-using System.Diagnostics;
 
 namespace Gruppeneditor
 {
@@ -117,8 +116,6 @@ namespace Gruppeneditor
                 SearchResult gr = search.FindOne();
                 if (gr != null)
                 {
-                    Console.WriteLine("Group: " + group.Value);
-                    Console.WriteLine("Group: " + gr.Properties["distinguishedName"][0]);
                     ManagedByMe.Add(group.Value, gr.Properties["distinguishedName"][0].ToString());
                 }
             }
