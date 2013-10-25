@@ -331,14 +331,6 @@ namespace Gruppeneditor
             Application.Exit();
         }
 
-        private void FormGroupEditor_Load(object sender, EventArgs e)
-        {
-            if (GroupDNTable.Count == 0)
-            {
-                MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         private void listViewMember_ItemChecked(object sender, ItemCheckedEventArgs e)
         {
             if (listViewMember.CheckedItems.Count > 0)
@@ -361,6 +353,11 @@ namespace Gruppeneditor
         {
             FormSplash.setProgress(100);
             timer1.Enabled = true;
+            if (GroupDNTable.Count == 0)
+            {
+                MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Application.Exit();
+            }
         }
 
     }

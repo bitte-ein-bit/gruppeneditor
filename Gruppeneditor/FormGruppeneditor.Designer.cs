@@ -197,7 +197,6 @@
             this.Name = "FormGuppeneditor";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "AD-Gruppeneditor";
-            this.Load += new System.EventHandler(this.FormGroupEditor_Load);
             this.Shown += new System.EventHandler(this.FormGuppeneditor_Shown);
             this.groupBoxMember.ResumeLayout(false);
             this.groupBoxMember.PerformLayout();
