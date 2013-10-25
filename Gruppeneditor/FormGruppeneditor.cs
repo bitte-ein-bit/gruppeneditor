@@ -286,12 +286,26 @@ namespace Gruppeneditor
 
         private void comboBoxMember_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Enter)
+            if (UserDNTable.ContainsKey(comboBoxMember.Text.ToLowerInvariant()))
             {
-                buttonAdd_Click(this, null);
+                if (e.KeyCode == Keys.Enter)
+                {
+                    if (buttonAdd.Enabled)
+                    {
+                        buttonAdd_Click(this, null);
+                    }
+                    else
+                    {
+                        buttonAdd.Enabled = true;
+                    }
+                }
             }
-            buttonAdd.Enabled = true;
-        }
+            else
+            {
+                buttonAdd.Enabled = false;
+            }
+        }                 
+       
 
         private void buttonRemove_Click(object sender, EventArgs e)
         {
