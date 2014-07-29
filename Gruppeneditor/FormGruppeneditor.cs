@@ -229,10 +229,28 @@ namespace Gruppeneditor
         }
 
         private void addUserToMemberList(string distinguishedName)
-        {            
+        {
+            string displayName;
             SearchResult user = GetUserForDN(distinguishedName);
             if (user == null) return;
-            string displayName = user.Properties["displayName"][0].ToString();
+            try
+            {
+                displayName = user.Properties["displayName"][0].ToString();
+            }
+            catch (Exception e)
+            {
+                ResultPropertyValueCollection t = user.Properties["name"];
+                if (t.Count >= 1)
+                {
+                    displayName = user.Properties["name"][0].ToString();
+                }
+                else
+                {
+                    MessageBox.Show("Beim Bearbeiten dieser Gruppe kann es zu Fehlern kommen, da nicht unterstüzte Objekte in dieser Gruppe enthalten sind. Wenden Sie sich ggf. an die Hotline.");
+                    return;
+                }
+            }
+                
             if (!GroupMember.ContainsKey(displayName.ToLowerInvariant()))
             {
                 ListViewItem lvi = new ListViewItem(displayName);
