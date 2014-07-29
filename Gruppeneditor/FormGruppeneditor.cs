@@ -229,10 +229,28 @@ namespace Gruppeneditor
         }
 
         private void addUserToMemberList(string distinguishedName)
-        {            
+        {
+            string displayName;
             SearchResult user = GetUserForDN(distinguishedName);
             if (user == null) return;
-            string displayName = user.Properties["displayName"][0].ToString();
+            try
+            {
+                displayName = user.Properties["displayName"][0].ToString();
+            }
+            catch (Exception e)
+            {
+                ResultPropertyValueCollection t = user.Properties["name"];
+                if (t.Count >= 1)
+                {
+                    displayName = user.Properties["name"][0].ToString();
+                }
+                else
+                {
+                    MessageBox.Show("Beim Bearbeiten dieser Gruppe kann es zu Fehlern kommen, da nicht unterstüzte Objekte in dieser Gruppe enthalten sind. Wenden Sie sich ggf. an die Hotline.");
+                    return;
+                }
+            }
+                
             if (!GroupMember.ContainsKey(displayName.ToLowerInvariant()))
             {
                 ListViewItem lvi = new ListViewItem(displayName);
@@ -286,12 +304,26 @@ namespace Gruppeneditor
 
         private void comboBoxMember_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Enter)
+            if (UserDNTable.ContainsKey(comboBoxMember.Text.ToLowerInvariant()))
             {
-                buttonAdd_Click(this, null);
+                if (e.KeyCode == Keys.Enter)
+                {
+                    if (buttonAdd.Enabled)
+                    {
+                        buttonAdd_Click(this, null);
+                    }
+                    else
+                    {
+                        buttonAdd.Enabled = true;
+                    }
+                }
             }
-            buttonAdd.Enabled = true;
-        }
+            else
+            {
+                buttonAdd.Enabled = false;
+            }
+        }                 
+       
 
         private void buttonRemove_Click(object sender, EventArgs e)
         {
@@ -331,14 +363,6 @@ namespace Gruppeneditor
             Application.Exit();
         }
 
-        private void FormGroupEditor_Load(object sender, EventArgs e)
-        {
-            if (GroupDNTable.Count == 0)
-            {
-                MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         private void listViewMember_ItemChecked(object sender, ItemCheckedEventArgs e)
         {
             if (listViewMember.CheckedItems.Count > 0)
@@ -361,6 +385,11 @@ namespace Gruppeneditor
         {
             FormSplash.setProgress(100);
             timer1.Enabled = true;
+            if (GroupDNTable.Count == 0)
+            {
+                MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Application.Exit();
+            }
         }
 
     }

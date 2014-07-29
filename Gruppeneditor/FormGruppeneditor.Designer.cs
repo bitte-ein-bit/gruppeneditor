@@ -196,8 +196,7 @@
             this.Controls.Add(this.comboBoxGruppe);
             this.Name = "FormGuppeneditor";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Gruppeneditor";
-            this.Load += new System.EventHandler(this.FormGroupEditor_Load);
+            this.Text = "AD-Gruppeneditor";
             this.Shown += new System.EventHandler(this.FormGuppeneditor_Shown);
             this.groupBoxMember.ResumeLayout(false);
             this.groupBoxMember.PerformLayout();
