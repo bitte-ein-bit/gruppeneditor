@@ -31,10 +31,9 @@ namespace Gruppeneditor
         {
             InitializeComponent();
             FormSplash.setProgress(50);
-            FindMyMemberships();
-            //GetTrustDomains();
+            FindMyGroupMemberships();
             FormSplash.setProgress(90);
-            FindAllUser();
+            LoadAllUser();
             FormSplash.setProgress(95);
             FindMyGroups();
         }
@@ -47,6 +46,9 @@ namespace Gruppeneditor
         private Hashtable GroupMember = new Hashtable();
         private Hashtable ManagedByMe = new Hashtable();
         private Hashtable Domains = new Hashtable();
+        private Hashtable DisplayToNameMap = new Hashtable();
+        private List<simpleADObject> Users = new List<simpleADObject>();
+        private List<simpleADObject> Groups = new List<simpleADObject>();
 
         private string GetSamAccountName()
         {
@@ -78,11 +80,11 @@ namespace Gruppeneditor
             return _localSearchRoot;
         }
 
-        private void FindAllUser()
+        private void LoadAllUser()
         {
             try
             {
-                comboBoxMember.AutoCompleteCustomSource.Clear();
+                
                 foreach (PrincipalContext AD in GetPrincipalContexts())
                 {
                     UserPrincipal u = new UserPrincipal(AD);
@@ -91,12 +93,8 @@ namespace Gruppeneditor
                     {
                         if (result.Enabled == true && result.EmailAddress != null && result.DisplayName != null)
                         {
-                            string tmp = String.Format("{0}", result.DisplayName);
-                            if (!UserDNTable.ContainsKey(tmp.ToLowerInvariant()))
-                            {
-                                UserDNTable.Add(tmp.ToLowerInvariant(), result.DistinguishedName);
-                                comboBoxMember.AutoCompleteCustomSource.Add(tmp);
-                            }
+                            simpleADObject user = new simpleADObject(result.DisplayName, result.DistinguishedName, result.EmailAddress, AD.Container);
+                            Users.Add(user);
                         }
                     }
                     search.Dispose();
@@ -106,6 +104,18 @@ namespace Gruppeneditor
             catch (Exception e)
             {
                 showError(e);
+            }
+        }
+
+        private void LoadAutoCompleteForContainers(string[] containers)
+        {
+            comboBoxMember.AutoCompleteCustomSource.Clear();
+            foreach (string container in containers)
+            {
+                foreach (simpleADObject tmp in Users.Where(a => a.DistinguishedName.Contains(container)).ToArray())
+                {
+                    comboBoxMember.AutoCompleteCustomSource.Add(tmp.DisplayName);
+                }
             }
         }
 
@@ -135,7 +145,7 @@ namespace Gruppeneditor
             }
         }
 
-        private void FindMyMemberships()
+        private void FindMyGroupMemberships()
         {
             DirectorySearcher search = GetLocalDirectorySearcher();
             foreach (IdentityReference group in WindowsIdentity.GetCurrent().Groups)
@@ -147,6 +157,21 @@ namespace Gruppeneditor
                     ManagedByMe.Add(group.Value, gr.Properties["distinguishedName"][0].ToString());
                 }
             }
+            foreach (DirectorySearcher dc in GetRemoteDirectorySearchers())
+            {
+                foreach (IdentityReference group in WindowsIdentity.GetCurrent().Groups)
+                {
+                    search.Filter = "(&(objectClass=foreignSecurityPrincipal)(cn=" + group.Value + "))";
+                    SearchResult gr = search.FindOne();
+                    if (gr != null)
+                    {
+                        for (int i = 0; i < gr.Properties["memberOf"].Count; i++)
+                        {
+                            ManagedByMe.Add(group.Value, gr.Properties["distinguishedName"][i].ToString());
+                        }
+                    }
+                }
+            }
         }
 
 
@@ -154,7 +179,6 @@ namespace Gruppeneditor
         {
             try
             {
-                DirectorySearcher search = GetLocalDirectorySearcher();
                 string dn = FindMyDN();
                 if (dn == null) return;
                 string filter = "";
@@ -171,18 +195,59 @@ namespace Gruppeneditor
                 {
                     filter = "(managedBy=" + dn + ")";
                 }
-                search.Filter = "(&(objectClass=group)" + filter + ")";
-                comboBoxGruppe.Items.Clear();
-                GroupDNTable.Clear();
-                foreach (SearchResult result in search.FindAll())
+                foreach (DirectorySearcher search in GetDirectorySearchers())
                 {
-                    string name = result.Properties["name"][0].ToString();
-                    comboBoxGruppe.Items.Add(name);
-                    if (GroupDNTable.ContainsKey(name.ToLowerInvariant()))
+                    search.Filter = "(&(objectClass=group)" + filter + ")";
+                    
+                    GroupDNTable.Clear();
+                    foreach (SearchResult result in search.FindAll())
                     {
-                        throw new NotImplementedException();
+                        string name = result.Properties["name"][0].ToString();
+                        string groupdn = result.Properties["distinguishedName"][0].ToString();
+                        simpleADObject group = new simpleADObject(name, groupdn, "", search.SearchRoot.Path.ToString().Replace("LDAP://",""));
+                        Groups.Add(group);
+                        
+                        //comboBoxGruppe.Items.Add(name);
+                        //if (GroupDNTable.ContainsKey(name.ToLowerInvariant()))
+                        //{
+                        //    throw new NotImplementedException();
+                        //}
+                        //GroupDNTable.Add(name.ToLowerInvariant(), groupdn);
                     }
-                    GroupDNTable.Add(name.ToLowerInvariant(), result.Properties["distinguishedName"][0]);
+                }
+
+                comboBoxGruppe.Items.Clear();
+                Groups.Sort(delegate(simpleADObject c1, simpleADObject c2) { return c1.DisplayName.CompareTo(c2.DisplayName); });
+                string prevGroup = "";
+                List<string> groupDomains = new List<string>();
+                DisplayToNameMap.Clear();
+
+                var maxLength = Groups.Max(a => a.DisplayName.Length);
+                string format = "{0, -" + maxLength + "} ({1})";
+                foreach (simpleADObject group in Groups.ToArray())
+                {
+                    if (group.DisplayName == prevGroup)
+                    {
+                        groupDomains.Add(group.Domain);
+                    }
+                    else
+                    {
+                        if (prevGroup != "" && groupDomains.Count > 0)
+                        {
+                            string text = String.Format(format, prevGroup, String.Join(", ", groupDomains.ToArray()));
+                            comboBoxGruppe.Items.Add(text);
+                            DisplayToNameMap.Add(text, prevGroup);
+                        }
+                        prevGroup = group.DisplayName;
+                        groupDomains = new List<string>();
+                        groupDomains.Add(group.Domain);
+                    }
+                }
+                if (prevGroup != "" && groupDomains.Count > 0)
+                {
+                    string text = String.Format(format, prevGroup, String.Join(", ", groupDomains.ToArray()));
+                    comboBoxGruppe.Items.Add(text);
+                    DisplayToNameMap.Add(text, prevGroup);
                 }
                 comboBoxGruppe.Items.Add("bitte wählen");
                 comboBoxGruppe.SelectedIndexChanged -= this.comboBoxGruppe_SelectedIndexChanged;
@@ -199,7 +264,7 @@ namespace Gruppeneditor
         {
             try
             {
-                DirectorySearcher search = GetDirectorySearcher(dn);
+                DirectorySearcher search = GetDirectorySearcherForDN(dn);
                 search.Filter = "(distinguishedName=" + dn + ")";
                 return search.FindOne();
             }
@@ -214,16 +279,22 @@ namespace Gruppeneditor
         {
             try
             {
-                DirectorySearcher search = GetLocalDirectorySearcher();
-                search.Filter = "(distinguishedName=" + GroupDNTable[groupname.ToLowerInvariant()] + ")";
+                String[] Domains = Groups.Where(a => a.DisplayName == groupname).ToList().Select(a => a.Container).ToArray();
                 clearMemberList();
-                SearchResult result = search.FindOne();
-                for (int i = 0; i < result.Properties["member"].Count; i++)
+                foreach (string Domain in Domains)
                 {
-                    addUserToMemberList(result.Properties["member"][i].ToString());
+                    string dn = Groups.Where(a => a.DisplayName == groupname).Where(a => a.Container == Domain).Select(a => a.DistinguishedName).ToArray()[0];
+                    DirectorySearcher search = GetDirectorySearcherForDomain(Domain);
+
+                    search.Filter = "(distinguishedName=" + dn + ")";
+                    SearchResult result = search.FindOne();
+                    for (int i = 0; i < result.Properties["member"].Count; i++)
+                    {
+                        addUserToMemberList(result.Properties["member"][i].ToString());
+                    }
+                    Int32 groupType = (Int32)result.Properties["groupType"][0];
+                    _cannotAddTrustUser = ((groupType & 0x4) == 0x4); // Local Group oder nicht
                 }
-                Int32 groupType = (Int32)result.Properties["groupType"][0];
-                _cannotAddTrustUser = ((groupType & 0x4) == 0x4); // Local Group oder nicht
             }
             catch (Exception e)
             {
@@ -238,7 +309,55 @@ namespace Gruppeneditor
             return new DirectorySearcher(ldapConnection);
         }
 
-        private DirectorySearcher GetDirectorySearcher(String dnOrSid)
+        private DirectorySearcher[] GetRemoteDirectorySearchers()
+        {
+            List<DirectorySearcher> remote = new List<DirectorySearcher>();
+            string root = getLocalSearchRoot();
+            foreach (PrincipalContext PC in Domains.Values.Cast<PrincipalContext>().Where<PrincipalContext>(a => a.Container.ToString() != root).ToArray<PrincipalContext>())
+            {
+                DirectoryEntry ldapConnection = new DirectoryEntry("LDAP://" + PC.Container);
+                ldapConnection.AuthenticationType = AuthenticationTypes.Secure;
+                remote.Add(new DirectorySearcher(ldapConnection));
+            }
+            return remote.ToArray();
+        }
+
+        private DirectorySearcher[] GetDirectorySearchers()
+        {
+            List<DirectorySearcher> searchers = new List<DirectorySearcher>();
+            foreach (PrincipalContext PC in GetPrincipalContexts())
+            {
+                DirectoryEntry ldapConnection = new DirectoryEntry("LDAP://" + PC.Container);
+                ldapConnection.AuthenticationType = AuthenticationTypes.Secure;
+                searchers.Add(new DirectorySearcher(ldapConnection));
+            }
+            return searchers.ToArray();
+        }
+
+        private DirectorySearcher[] GetDirectorySearchers(String[] Container)
+        {
+            List<DirectorySearcher> searchers = new List<DirectorySearcher>();
+            foreach (PrincipalContext PC in Domains.Values.Cast<PrincipalContext>().Where<PrincipalContext>(a => Container.Contains(a.Container.ToString())).ToArray<PrincipalContext>())
+            {
+                DirectoryEntry ldapConnection = new DirectoryEntry("LDAP://" + PC.Container);
+                ldapConnection.AuthenticationType = AuthenticationTypes.Secure;
+                searchers.Add(new DirectorySearcher(ldapConnection));
+            }
+            return searchers.ToArray();
+        }
+
+        private DirectorySearcher GetDirectorySearcherForDomain(string Domain)
+        {
+            string[] Domains = { Domain };
+            DirectorySearcher[] tmp = GetDirectorySearchers(Domains);
+            if (tmp.Length > 0)
+            {
+                return tmp[0];
+            }
+            return null;
+        }
+
+        private DirectorySearcher GetDirectorySearcherForDN(String dnOrSid)
         {
             foreach (PrincipalContext PC in GetPrincipalContexts())
             {
@@ -290,7 +409,7 @@ namespace Gruppeneditor
             if (comboBoxGruppe.SelectedItem.ToString() != "bitte wählen")
             {
                 comboBoxGruppe.Items.Remove("bitte wählen");
-                LoadGroup(comboBoxGruppe.SelectedItem.ToString());
+                LoadGroup(DisplayToNameMap[comboBoxGruppe.SelectedItem.ToString()].ToString());
                 groupBoxMember.Enabled = true;
                 buttonSave.Enabled = false;
                 if (comboBoxMember.Text.Length == 0)
@@ -317,24 +436,36 @@ namespace Gruppeneditor
             {
                 user = GetUserForDN(distinguishedName);
             }
-                if (user == null) return;
-                try
+            if (user == null) return;
+
+            string domain = null;
+            foreach(PrincipalContext pc in Domains.Values) {
+                if (user.Path.Contains(pc.Container))
                 {
-                    displayName = user.Properties["displayName"][0].ToString();
+                    domain = pc.Container.Replace(",DC=", ".").Replace("DC=", "");
                 }
-                catch (Exception e)
+            }
+            if (domain == null)
+            {
+                throw new NotImplementedException("Unbekannte Domain für " + user.Path);
+            }
+            try
+            {
+                displayName = user.Properties["displayName"][0].ToString();
+            }
+            catch (Exception e)
+            {
+                ResultPropertyValueCollection t = user.Properties["name"];
+                if (t.Count >= 1)
                 {
-                    ResultPropertyValueCollection t = user.Properties["name"];
-                    if (t.Count >= 1)
-                    {
-                        displayName = user.Properties["name"][0].ToString();
-                    }
-                    else
-                    {
-                        MessageBox.Show("Beim Bearbeiten dieser Gruppe kann es zu Fehlern kommen, da nicht unterstüzte Objekte in dieser Gruppe enthalten sind. Wenden Sie sich ggf. an die Hotline.");
-                        return;
-                    }
+                    displayName = user.Properties["name"][0].ToString();
                 }
+                else
+                {
+                    MessageBox.Show("Beim Bearbeiten dieser Gruppe kann es zu Fehlern kommen, da nicht unterstüzte Objekte in dieser Gruppe enthalten sind. Wenden Sie sich ggf. an die Hotline.");
+                    return;
+                }
+            }
 
             if (!GroupMember.ContainsKey(displayName.ToLowerInvariant()))
             {
@@ -347,6 +478,7 @@ namespace Gruppeneditor
                 {
                     lvi.SubItems.Add("keine Email Adresse vorhanden");
                 }
+                lvi.SubItems.Add(domain);
                 listViewMember.Items.Add(lvi);
                 GroupMember.Add(displayName.ToLowerInvariant(), distinguishedName);
             }
@@ -495,12 +627,83 @@ namespace Gruppeneditor
         {
             FormSplash.setProgress(100);
             timer1.Enabled = true;
-            if (GroupDNTable.Count == 0)
+            if (Groups.Count == 0)
             {
                 MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Application.Exit();
             }
         }
 
+    }
+
+    public class simpleADObject
+    {
+        private string _DisplayName;
+        private string _DistinguishedName;
+        private string _EmailAddress;
+        private string _Domain;
+        private string _Container;
+
+        public string DisplayName { 
+            get {
+            return _DisplayName;
+            }
+            set {
+                _DisplayName = value;
+            }
+        }
+
+        public string DistinguishedName
+        {
+            get
+            {
+                return _DistinguishedName;
+            }
+            set
+            {
+                _DistinguishedName = value;
+            }
+        }
+
+        public string EmailAddress
+        {
+            get
+            {
+                return _EmailAddress;
+            }
+            set
+            {
+                _EmailAddress = value;
+            }
+        }
+
+        public string Domain
+        {
+            get
+            {
+                return _Domain;
+            }
+            
+        }
+
+        public string Container
+        {
+            get
+            {
+                return _Container;
+            }
+            set
+            {
+                _Container = value;
+                _Domain = value.Replace(",DC=", ".").Replace("DC=", "");
+            }
+        }
+
+        public simpleADObject(string DisplayName, string DistinguishedName, string EmailAddress, string Container) {
+            this.DisplayName = DisplayName;
+            this.DistinguishedName = DistinguishedName;
+            this.EmailAddress = DisplayName;
+            this.Container = Container;
+        }
     }
 }
