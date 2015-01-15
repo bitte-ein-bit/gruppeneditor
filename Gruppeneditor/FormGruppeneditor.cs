@@ -39,7 +39,6 @@ namespace Gruppeneditor
             FindMyGroups();
         }
 
-        private PrincipalContext[] _PrincipalContexts;
         private bool _cannotAddTrustUser;
         private string _localSearchRoot;
 
@@ -47,6 +46,7 @@ namespace Gruppeneditor
         private Hashtable GroupDNTable = new Hashtable();
         private Hashtable GroupMember = new Hashtable();
         private Hashtable ManagedByMe = new Hashtable();
+        private Hashtable Domains = new Hashtable();
 
         private string GetSamAccountName()
         {
@@ -58,15 +58,14 @@ namespace Gruppeneditor
 
         private PrincipalContext[] GetPrincipalContexts()
         {
-            if (_PrincipalContexts == null)
+            if (Domains.Count == 0)
             {
-                PrincipalContext[] PrincipalContexts = {
-                    new PrincipalContext(ContextType.Domain, "dom1.de", "DC=dom1,DC=de"), 
-                    new PrincipalContext(ContextType.Domain, "dom2.de", "DC=dom2,DC=de") 
-                };
-                _PrincipalContexts = PrincipalContexts;
+                Domains.Add("dom1.de", new PrincipalContext(ContextType.Domain, "dom1.de", "DC=dom1,DC=de"));
+                Domains.Add("dom2.de", new PrincipalContext(ContextType.Domain, "dom2.de", "DC=dom2,DC=de"));
+                
             }
-            return _PrincipalContexts;
+
+            return Domains.Values.Cast<PrincipalContext>().ToArray<PrincipalContext>();
         }
 
         private string getLocalSearchRoot()
