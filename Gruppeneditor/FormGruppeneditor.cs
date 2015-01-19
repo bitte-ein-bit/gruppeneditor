@@ -38,17 +38,16 @@ namespace Gruppeneditor
             FindMyGroups();
         }
 
-        private bool _cannotAddTrustUser;
         private string _localSearchRoot;
 
-        private Hashtable UserDNTable = new Hashtable();
-        private Hashtable GroupDNTable = new Hashtable();
-        private Hashtable GroupMember = new Hashtable();
+        private List<simpleADObject> GroupMember = new List<simpleADObject>();
         private Hashtable ManagedByMe = new Hashtable();
         private Hashtable Domains = new Hashtable();
         private Hashtable DisplayToNameMap = new Hashtable();
         private List<simpleADObject> Users = new List<simpleADObject>();
         private List<simpleADObject> Groups = new List<simpleADObject>();
+        private String[] currentDomains;
+        private List<simpleADObject> currentGroups = new List<simpleADObject>();
 
         private string GetSamAccountName()
         {
@@ -104,18 +103,6 @@ namespace Gruppeneditor
             catch (Exception e)
             {
                 showError(e);
-            }
-        }
-
-        private void LoadAutoCompleteForContainers(string[] containers)
-        {
-            comboBoxMember.AutoCompleteCustomSource.Clear();
-            foreach (string container in containers)
-            {
-                foreach (simpleADObject tmp in Users.Where(a => a.DistinguishedName.Contains(container)).ToArray())
-                {
-                    comboBoxMember.AutoCompleteCustomSource.Add(tmp.DisplayName);
-                }
             }
         }
 
@@ -199,20 +186,12 @@ namespace Gruppeneditor
                 {
                     search.Filter = "(&(objectClass=group)" + filter + ")";
                     
-                    GroupDNTable.Clear();
                     foreach (SearchResult result in search.FindAll())
                     {
                         string name = result.Properties["name"][0].ToString();
                         string groupdn = result.Properties["distinguishedName"][0].ToString();
                         simpleADObject group = new simpleADObject(name, groupdn, "", search.SearchRoot.Path.ToString().Replace("LDAP://",""));
                         Groups.Add(group);
-                        
-                        //comboBoxGruppe.Items.Add(name);
-                        //if (GroupDNTable.ContainsKey(name.ToLowerInvariant()))
-                        //{
-                        //    throw new NotImplementedException();
-                        //}
-                        //GroupDNTable.Add(name.ToLowerInvariant(), groupdn);
                     }
                 }
 
@@ -279,12 +258,13 @@ namespace Gruppeneditor
         {
             try
             {
-                String[] Domains = Groups.Where(a => a.DisplayName == groupname).ToList().Select(a => a.Container).ToArray();
+                currentGroups = Groups.Where(a => a.DisplayName == groupname).ToList();
+                currentDomains = currentGroups.Select(a => a.Container).ToArray();
                 clearMemberList();
-                foreach (string Domain in Domains)
+                foreach (string Container in currentDomains)
                 {
-                    string dn = Groups.Where(a => a.DisplayName == groupname).Where(a => a.Container == Domain).Select(a => a.DistinguishedName).ToArray()[0];
-                    DirectorySearcher search = GetDirectorySearcherForDomain(Domain);
+                    string dn = Groups.Where(a => a.DisplayName == groupname).Where(a => a.Container == Container).Select(a => a.DistinguishedName).ToArray()[0];
+                    DirectorySearcher search = GetDirectorySearcherForContainer(Container);
 
                     search.Filter = "(distinguishedName=" + dn + ")";
                     SearchResult result = search.FindOne();
@@ -292,8 +272,8 @@ namespace Gruppeneditor
                     {
                         addUserToMemberList(result.Properties["member"][i].ToString());
                     }
-                    Int32 groupType = (Int32)result.Properties["groupType"][0];
-                    _cannotAddTrustUser = ((groupType & 0x4) == 0x4); // Local Group oder nicht
+                    //Int32 groupType = (Int32)result.Properties["groupType"][0];
+                    //_cannotAddTrustUser = ((groupType & 0x4) == 0x4); // Local Group oder nicht
                 }
             }
             catch (Exception e)
@@ -346,10 +326,10 @@ namespace Gruppeneditor
             return searchers.ToArray();
         }
 
-        private DirectorySearcher GetDirectorySearcherForDomain(string Domain)
+        private DirectorySearcher GetDirectorySearcherForContainer(string Container)
         {
-            string[] Domains = { Domain };
-            DirectorySearcher[] tmp = GetDirectorySearchers(Domains);
+            string[] Containers = { Container };
+            DirectorySearcher[] tmp = GetDirectorySearchers(Containers);
             if (tmp.Length > 0)
             {
                 return tmp[0];
@@ -410,13 +390,15 @@ namespace Gruppeneditor
             {
                 comboBoxGruppe.Items.Remove("bitte wählen");
                 LoadGroup(DisplayToNameMap[comboBoxGruppe.SelectedItem.ToString()].ToString());
+                comboBoxMember.AutoCompleteCustomSource.Clear();
+                comboBoxMember.AutoCompleteCustomSource.AddRange(Users.Where(a => currentDomains.Contains(a.Container)).Select(a => a.DisplayNameWithDomain).ToArray());
                 groupBoxMember.Enabled = true;
                 buttonSave.Enabled = false;
                 if (comboBoxMember.Text.Length == 0)
                 {
                     buttonAdd.Enabled = false;
                 }
-                if (!UserDNTable.ContainsKey(comboBoxMember.Text.ToLowerInvariant()))
+                if (Users.Find(a => a.DisplayNameWithDomain == comboBoxMember.Text) == null)
                 {
                     buttonAdd.Enabled = false;
                 }
@@ -426,6 +408,8 @@ namespace Gruppeneditor
         private void addUserToMemberList(string distinguishedName)
         {
             string displayName;
+            string container = null;
+            string domain = null;
             SearchResult user;
             if (distinguishedName.Contains("CN=ForeignSecurityPrincipals"))
             {
@@ -437,12 +421,15 @@ namespace Gruppeneditor
                 user = GetUserForDN(distinguishedName);
             }
             if (user == null) return;
-
-            string domain = null;
+            
             foreach(PrincipalContext pc in Domains.Values) {
                 if (user.Path.Contains(pc.Container))
                 {
                     domain = pc.Container.Replace(",DC=", ".").Replace("DC=", "");
+                }
+                if (distinguishedName.Contains(pc.Container))
+                {
+                    container = pc.Container;
                 }
             }
             if (domain == null)
@@ -453,7 +440,7 @@ namespace Gruppeneditor
             {
                 displayName = user.Properties["displayName"][0].ToString();
             }
-            catch (Exception e)
+            catch
             {
                 ResultPropertyValueCollection t = user.Properties["name"];
                 if (t.Count >= 1)
@@ -466,21 +453,23 @@ namespace Gruppeneditor
                     return;
                 }
             }
-
-            if (!GroupMember.ContainsKey(displayName.ToLowerInvariant()))
+            if (GroupMember.Find(a => a.DistinguishedName == distinguishedName) == null)
             {
+                simpleADObject obj;
                 ListViewItem lvi = new ListViewItem(displayName);
                 if (user.Properties.Contains("mail"))
                 {
                     lvi.SubItems.Add(user.Properties["mail"][0].ToString().ToLowerInvariant());
+                    obj = new simpleADObject(displayName, distinguishedName, user.Properties["mail"][0].ToString().ToLowerInvariant(), container);
                 }
                 else
                 {
                     lvi.SubItems.Add("keine Email Adresse vorhanden");
+                    obj = new simpleADObject(displayName, distinguishedName, null, container);
                 }
                 lvi.SubItems.Add(domain);
                 listViewMember.Items.Add(lvi);
-                GroupMember.Add(displayName.ToLowerInvariant(), distinguishedName);
+                GroupMember.Add(obj);
             }
             else
             {
@@ -493,53 +482,53 @@ namespace Gruppeneditor
             listViewMember.Items.Clear();
             GroupMember.Clear();
         }
-
-        private void removeMember(string displayName)
-        {
-            foreach (ListViewItem item in listViewMember.Items)
-            {
-                if (item.Text.Equals(displayName))
-                {
-                    item.Remove();
-                }
-            }
-            GroupMember.Remove(displayName.ToLowerInvariant());
-        }
-
+        
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            if (UserDNTable.ContainsKey(comboBoxMember.Text.ToLowerInvariant()))
-            {
-                string userdn = UserDNTable[comboBoxMember.Text.ToLowerInvariant()].ToString();
-                if (!_cannotAddTrustUser)
+            simpleADObject[] users = Users.Where(a => a.DisplayNameWithDomain.ToLowerInvariant() == comboBoxMember.Text.ToLowerInvariant()).ToArray();
+            if (users.Length == 1) {
+                simpleADObject user = users[0];
+                if (currentGroups.Where(a => a.Container == user.Container).ToArray().Length > 0)
                 {
-                    if (userdn.Contains(getLocalSearchRoot()))
-                    {
-                        addUserToMemberList(userdn);
-                        buttonSave.Enabled = true;
-                    }
-                    else
-                    {
-                        MessageBox.Show("Dieser Benutzer ist Teil einer anderen Domäne. " +
-                        "Möchten Sie diesen Benutzer hinzufügen, muss der Typ dieser Gruppe von der IT vorher bearbeitet werden. (Stichwort: Domänen lokal)", "Hinzufügen leider nicht möglich", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    }
-                }
-                else
-                {
-                    addUserToMemberList(userdn);
+                    addUserToMemberList(user.DistinguishedName);
                     buttonSave.Enabled = true;
                 }
+                
+                //if (!_cannotAddTrustUser)
+                //{
+                //    if (userdn.Contains(getLocalSearchRoot()))
+                //    {
+                        
+                //    }
+                //    else
+                //    {
+                //        MessageBox.Show("Dieser Benutzer ist Teil einer anderen Domäne. " +
+                //        "Möchten Sie diesen Benutzer hinzufügen, muss der Typ dieser Gruppe von der IT vorher bearbeitet werden. (Stichwort: Domänen lokal)", "Hinzufügen leider nicht möglich", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                //    }
+                //}
+                //else
+                //{
+                //    addUserToMemberList(userdn);
+                //    buttonSave.Enabled = true;
+                //}
             }
             else
             {
-                MessageBox.Show("Benutzer nicht gefunden", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (users.Length > 1)
+                {
+                    MessageBox.Show("Benutzer nicht eindeutig gefunden", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else
+                {
+                    MessageBox.Show("Benutzer nicht gefunden", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             
         }
 
         private void comboBoxMember_KeyDown(object sender, KeyEventArgs e)
         {
-            if (UserDNTable.ContainsKey(comboBoxMember.Text.ToLowerInvariant()))
+            if (Users.Find(a => a.DisplayNameWithDomain == comboBoxMember.Text) != null)
             {
                 if (e.KeyCode == Keys.Enter)
                 {
@@ -564,7 +553,8 @@ namespace Gruppeneditor
         {
             foreach (ListViewItem item in listViewMember.CheckedItems)
             {
-                removeMember(item.Text);
+                GroupMember = GroupMember.Where(a => !(a.DisplayName == item.Text && a.Domain == item.SubItems[2].Text)).ToList();
+                item.Remove();
             }
             buttonSave.Enabled = true;
         }
@@ -573,25 +563,25 @@ namespace Gruppeneditor
         {
             try
             {
-                DirectorySearcher search = GetLocalDirectorySearcher();
-                
-                search.Filter = "(distinguishedName=" + GroupDNTable[comboBoxGruppe.SelectedItem.ToString().ToLowerInvariant()] + ")";
-                SearchResult result = search.FindOne();
-                DirectoryEntry group = result.GetDirectoryEntry();
-                group.Properties["member"].Clear();
-                group.CommitChanges();
-
-                foreach (string distinguishedName in GroupMember.Values)
+                foreach (simpleADObject cGroup in currentGroups)
                 {
-                    string sid = GetSidForUser(GetUserForDN(distinguishedName));
-                    if (sid != null)
+                    DirectorySearcher search = GetDirectorySearcherForContainer(cGroup.Container);
+                    if (search == null)
                     {
-                        group.Invoke("Add", new Object[] { String.Format("LDAP://<SID={0}>", sid) });
-                        //group.Properties["member"].Add(String.Format("LDAP://<SID={0}>", sid));
+                        continue;
                     }
+
+                    search.Filter = "(distinguishedName=" + cGroup.DistinguishedName + ")";
+                    SearchResult result = search.FindOne();
+                    DirectoryEntry group = result.GetDirectoryEntry();
+                    group.Properties["member"].Clear();
+                    foreach (simpleADObject obj in GroupMember.Where(a => a.Container == cGroup.Container))
+                    {
+                        group.Properties["member"].Add(obj.DistinguishedName);
+                    }
+                    group.CommitChanges();
+                    buttonSave.Enabled = false;
                 }
-                
-                buttonSave.Enabled = false;
             }
             catch (Exception ex)
             {
@@ -634,6 +624,42 @@ namespace Gruppeneditor
             }
         }
 
+        private void comboKeyPressed()
+        {
+            
+
+            string[] originalList = (string[])comboBoxMember.Tag;
+            if (originalList == null)
+            {
+                // backup original list
+                originalList = new string[comboBoxMember.AutoCompleteCustomSource.Count];
+                comboBoxMember.AutoCompleteCustomSource.CopyTo(originalList, 0);
+                comboBoxMember.Tag = originalList;
+            }
+
+            // prepare list of matching items
+            string s = comboBoxMember.Text.ToLower();
+            IEnumerable<string> newList = originalList;
+            if (s.Length > 1)
+            {
+                newList = originalList.Where(item => item.ToString().ToLower().Contains(s));
+                comboBoxMember.DroppedDown = true;
+
+                // clear list (loop through it, otherwise the cursor would move to the beginning of the textbox...)
+                while (comboBoxMember.Items.Count > 0)
+                {
+                    comboBoxMember.Items.RemoveAt(0);
+                }
+
+                // re-set list
+                comboBoxMember.Items.AddRange(newList.ToArray());
+            }
+            else
+            {
+                comboBoxMember.DroppedDown = false;
+            }
+
+        }
     }
 
     public class simpleADObject
@@ -686,6 +712,14 @@ namespace Gruppeneditor
             
         }
 
+        public string DisplayNameWithDomain
+        {
+            get
+            {
+                return _DisplayName + " [" + _Domain + "]";
+            }
+        }
+
         public string Container
         {
             get
@@ -702,7 +736,7 @@ namespace Gruppeneditor
         public simpleADObject(string DisplayName, string DistinguishedName, string EmailAddress, string Container) {
             this.DisplayName = DisplayName;
             this.DistinguishedName = DistinguishedName;
-            this.EmailAddress = DisplayName;
+            this.EmailAddress = EmailAddress;
             this.Container = Container;
         }
     }
