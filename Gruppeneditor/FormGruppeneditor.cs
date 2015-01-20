@@ -437,6 +437,7 @@ namespace Gruppeneditor
 
         private void comboBoxGruppe_SelectedIndexChanged(object sender, EventArgs e)
         {
+            this.UseWaitCursor = true;
             if (comboBoxGruppe.SelectedItem.ToString() != "bitte wählen")
             {
                 comboBoxGruppe.Items.Remove("bitte wählen");
@@ -454,6 +455,7 @@ namespace Gruppeneditor
                     buttonAdd.Enabled = false;
                 }
             }
+            this.UseWaitCursor = false;
         }
 
         private void addUserToMemberList(string distinguishedName)
