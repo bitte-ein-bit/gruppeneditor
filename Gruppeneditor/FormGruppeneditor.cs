@@ -325,8 +325,6 @@ namespace Gruppeneditor
                     {
                         addUserToMemberList(result.Properties["member"][i].ToString());
                     }
-                    //Int32 groupType = (Int32)result.Properties["groupType"][0];
-                    //_cannotAddTrustUser = ((groupType & 0x4) == 0x4); // Local Group oder nicht
                 }
             }
             catch (Exception e)
@@ -546,24 +544,6 @@ namespace Gruppeneditor
                     addUserToMemberList(user.DistinguishedName);
                     buttonSave.Enabled = true;
                 }
-                
-                //if (!_cannotAddTrustUser)
-                //{
-                //    if (userdn.Contains(getLocalSearchRoot()))
-                //    {
-                        
-                //    }
-                //    else
-                //    {
-                //        MessageBox.Show("Dieser Benutzer ist Teil einer anderen Domäne. " +
-                //        "Möchten Sie diesen Benutzer hinzufügen, muss der Typ dieser Gruppe von der IT vorher bearbeitet werden. (Stichwort: Domänen lokal)", "Hinzufügen leider nicht möglich", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                //    }
-                //}
-                //else
-                //{
-                //    addUserToMemberList(userdn);
-                //    buttonSave.Enabled = true;
-                //}
             }
             else
             {
@@ -675,43 +655,6 @@ namespace Gruppeneditor
                 MessageBox.Show("Sie sind bei keiner Gruppe als verwaltungsberechtigt eingetragen.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Application.Exit();
             }
-        }
-
-        private void comboKeyPressed()
-        {
-            
-
-            string[] originalList = (string[])comboBoxMember.Tag;
-            if (originalList == null)
-            {
-                // backup original list
-                originalList = new string[comboBoxMember.AutoCompleteCustomSource.Count];
-                comboBoxMember.AutoCompleteCustomSource.CopyTo(originalList, 0);
-                comboBoxMember.Tag = originalList;
-            }
-
-            // prepare list of matching items
-            string s = comboBoxMember.Text.ToLower();
-            IEnumerable<string> newList = originalList;
-            if (s.Length > 1)
-            {
-                newList = originalList.Where(item => item.ToString().ToLower().Contains(s));
-                comboBoxMember.DroppedDown = true;
-
-                // clear list (loop through it, otherwise the cursor would move to the beginning of the textbox...)
-                while (comboBoxMember.Items.Count > 0)
-                {
-                    comboBoxMember.Items.RemoveAt(0);
-                }
-
-                // re-set list
-                comboBoxMember.Items.AddRange(newList.ToArray());
-            }
-            else
-            {
-                comboBoxMember.DroppedDown = false;
-            }
-
         }
     }
 
