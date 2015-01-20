@@ -132,6 +132,31 @@ namespace Gruppeneditor
             }
         }
 
+        private string FindMySid()
+        {
+            try
+            {
+                foreach (PrincipalContext AD in GetPrincipalContexts())
+                {
+                    UserPrincipal u = new UserPrincipal(AD);
+                    u.SamAccountName = GetSamAccountName();
+                    PrincipalSearcher search = new PrincipalSearcher(u);
+
+                    Principal user = search.FindOne();
+                    if (user != null)
+                    {
+                        search.Dispose();
+                        return user.Sid.ToString();
+                    }
+                }
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private void FindMyGroupMemberships()
         {
             DirectorySearcher search = GetLocalDirectorySearcher();
@@ -167,30 +192,58 @@ namespace Gruppeneditor
             try
             {
                 string dn = FindMyDN();
+                string sid = FindMySid();
                 if (dn == null) return;
-                string filter = "";
+                if (sid == null) return;
+                string localFilter = "";
                 if (ManagedByMe.Count > 0)
                 {
-                    filter = "(|(managedBy=" + dn + ")";
+                    localFilter = "(|(managedBy=" + dn + ")";
                     foreach (String s in ManagedByMe.Values)
                     {
-                        filter += "(managedBy=" + s + ")";
+                        localFilter += "(managedBy=" + s + ")";
                     }
-                    filter += ")";
+                    localFilter += ")";
                 }
                 else
                 {
-                    filter = "(managedBy=" + dn + ")";
+                    localFilter = "(managedBy=" + dn + ")";
                 }
-                foreach (DirectorySearcher search in GetDirectorySearchers())
+                DirectorySearcher search = GetLocalDirectorySearcher();
+                search.Filter = "(&(objectClass=group)" + localFilter + ")";
+                foreach (SearchResult result in search.FindAll())
                 {
-                    search.Filter = "(&(objectClass=group)" + filter + ")";
-                    
-                    foreach (SearchResult result in search.FindAll())
+                    string name = result.Properties["name"][0].ToString();
+                    string groupdn = result.Properties["distinguishedName"][0].ToString();
+                    simpleADObject group = new simpleADObject(name, groupdn, "", getLocalSearchRoot());
+                    Groups.Add(group);
+                }
+
+                
+
+                foreach (DirectorySearcher remoteSearch in GetRemoteDirectorySearchers())
+                {
+                    string domain = remoteSearch.SearchRoot.Path.ToString().Replace("LDAP://", "");
+                    string remoteFilter = "(&(objectClass=group)(|(member=CN=" + sid + ",CN=ForeignSecurityPrincipals," + domain + ")";
+                    foreach (IdentityReference myGroups in WindowsIdentity.GetCurrent().Groups)
+                    {
+                        remoteFilter += "(member=CN=" + myGroups.Value + ",CN=ForeignSecurityPrincipals," + domain + ")";
+                    }
+                    remoteFilter += "))";
+                    remoteSearch.Filter = remoteFilter;
+                    localFilter = "(|";
+                    foreach (SearchResult result in remoteSearch.FindAll())
+                    {
+                        string groupdn = result.Properties["distinguishedName"][0].ToString();
+                        localFilter += "(managedBy=" + groupdn + ")";
+                    }
+                    localFilter += ")";
+                    remoteSearch.Filter = localFilter;
+                    foreach (SearchResult result in remoteSearch.FindAll())
                     {
                         string name = result.Properties["name"][0].ToString();
                         string groupdn = result.Properties["distinguishedName"][0].ToString();
-                        simpleADObject group = new simpleADObject(name, groupdn, "", search.SearchRoot.Path.ToString().Replace("LDAP://",""));
+                        simpleADObject group = new simpleADObject(name, groupdn, "", domain);
                         Groups.Add(group);
                     }
                 }
@@ -205,7 +258,7 @@ namespace Gruppeneditor
                 string format = "{0, -" + maxLength + "} ({1})";
                 foreach (simpleADObject group in Groups.ToArray())
                 {
-                    if (group.DisplayName == prevGroup)
+                    if (group.DisplayName.ToLower() == prevGroup.ToLower())
                     {
                         groupDomains.Add(group.Domain);
                     }
@@ -258,12 +311,12 @@ namespace Gruppeneditor
         {
             try
             {
-                currentGroups = Groups.Where(a => a.DisplayName == groupname).ToList();
+                currentGroups = Groups.Where(a => a.DisplayName.ToLower() == groupname.ToLower()).ToList();
                 currentDomains = currentGroups.Select(a => a.Container).ToArray();
                 clearMemberList();
                 foreach (string Container in currentDomains)
                 {
-                    string dn = Groups.Where(a => a.DisplayName == groupname).Where(a => a.Container == Container).Select(a => a.DistinguishedName).ToArray()[0];
+                    string dn = currentGroups.Where(a => a.Container == Container).Select(a => a.DistinguishedName).ToArray()[0];
                     DirectorySearcher search = GetDirectorySearcherForContainer(Container);
 
                     search.Filter = "(distinguishedName=" + dn + ")";
@@ -528,7 +581,7 @@ namespace Gruppeneditor
 
         private void comboBoxMember_KeyDown(object sender, KeyEventArgs e)
         {
-            if (Users.Find(a => a.DisplayNameWithDomain == comboBoxMember.Text) != null)
+            if (Users.Find(a => a.DisplayNameWithDomain.ToLower() == comboBoxMember.Text.ToLower()) != null)
             {
                 if (e.KeyCode == Keys.Enter)
                 {
