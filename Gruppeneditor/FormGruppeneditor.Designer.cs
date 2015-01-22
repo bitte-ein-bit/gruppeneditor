@@ -43,7 +43,11 @@
             this.buttonSave = new System.Windows.Forms.Button();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.timer1 = new System.Windows.Forms.Timer(this.components);
+            this.statusStrip1 = new System.Windows.Forms.StatusStrip();
+            this.toolStripStatusLabelDomain = new System.Windows.Forms.ToolStripStatusLabel();
+            this.toolStripStatusLabelVersion = new System.Windows.Forms.ToolStripStatusLabel();
             this.groupBoxMember.SuspendLayout();
+            this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
             // comboBoxGruppe
@@ -87,7 +91,7 @@
             this.groupBoxMember.Enabled = false;
             this.groupBoxMember.Location = new System.Drawing.Point(15, 33);
             this.groupBoxMember.Name = "groupBoxMember";
-            this.groupBoxMember.Size = new System.Drawing.Size(593, 436);
+            this.groupBoxMember.Size = new System.Drawing.Size(593, 429);
             this.groupBoxMember.TabIndex = 4;
             this.groupBoxMember.TabStop = false;
             this.groupBoxMember.Text = "Gruppenmitglieder";
@@ -153,7 +157,7 @@
             this.listViewMember.Location = new System.Drawing.Point(6, 46);
             this.listViewMember.Name = "listViewMember";
             this.listViewMember.ShowGroups = false;
-            this.listViewMember.Size = new System.Drawing.Size(581, 373);
+            this.listViewMember.Size = new System.Drawing.Size(581, 366);
             this.listViewMember.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.listViewMember.TabIndex = 2;
             this.listViewMember.UseCompatibleStateImageBehavior = false;
@@ -178,7 +182,7 @@
             // 
             this.buttonSave.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonSave.Enabled = false;
-            this.buttonSave.Location = new System.Drawing.Point(533, 480);
+            this.buttonSave.Location = new System.Drawing.Point(533, 468);
             this.buttonSave.Name = "buttonSave";
             this.buttonSave.Size = new System.Drawing.Size(75, 23);
             this.buttonSave.TabIndex = 5;
@@ -192,11 +196,36 @@
             this.timer1.Interval = 500;
             this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
             // 
+            // statusStrip1
+            // 
+            this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.toolStripStatusLabelDomain,
+            this.toolStripStatusLabelVersion});
+            this.statusStrip1.Location = new System.Drawing.Point(0, 493);
+            this.statusStrip1.Name = "statusStrip1";
+            this.statusStrip1.Size = new System.Drawing.Size(620, 22);
+            this.statusStrip1.TabIndex = 6;
+            this.statusStrip1.Text = "statusStrip1";
+            // 
+            // toolStripStatusLabelDomain
+            // 
+            this.toolStripStatusLabelDomain.Name = "toolStripStatusLabelDomain";
+            this.toolStripStatusLabelDomain.Size = new System.Drawing.Size(0, 17);
+            // 
+            // toolStripStatusLabelVersion
+            // 
+            this.toolStripStatusLabelVersion.Name = "toolStripStatusLabelVersion";
+            this.toolStripStatusLabelVersion.Size = new System.Drawing.Size(574, 17);
+            this.toolStripStatusLabelVersion.Spring = true;
+            this.toolStripStatusLabelVersion.Text = "toolStripStatusLabel2";
+            this.toolStripStatusLabelVersion.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
             // FormGuppeneditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(620, 515);
+            this.Controls.Add(this.statusStrip1);
             this.Controls.Add(this.buttonSave);
             this.Controls.Add(this.groupBoxMember);
             this.Controls.Add(this.label1);
@@ -207,6 +236,8 @@
             this.Shown += new System.EventHandler(this.FormGuppeneditor_Shown);
             this.groupBoxMember.ResumeLayout(false);
             this.groupBoxMember.PerformLayout();
+            this.statusStrip1.ResumeLayout(false);
+            this.statusStrip1.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -228,6 +259,9 @@
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.ColumnHeader columnHeader3;
+        private System.Windows.Forms.StatusStrip statusStrip1;
+        private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelDomain;
+        private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelVersion;
 
     }
 }
