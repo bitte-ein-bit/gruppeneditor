@@ -36,6 +36,7 @@ namespace Gruppeneditor
             LoadAllUser();
             FormSplash.setProgress(95);
             FindMyGroups();
+            toolStripStatusLabelVersion.Text = Application.ProductVersion;
         }
 
         private string _localSearchRoot;
@@ -447,6 +448,24 @@ namespace Gruppeneditor
                 LoadGroup(DisplayToNameMap[comboBoxGruppe.SelectedItem.ToString()].ToString());
                 comboBoxMember.AutoCompleteCustomSource.Clear();
                 comboBoxMember.AutoCompleteCustomSource.AddRange(Users.Where(a => currentDomains.Contains(a.Container)).Select(a => a.DisplayNameWithDomain).ToArray());
+                if (currentDomains.Length < Domains.Count)
+                {
+                    string comma = "";
+                    string missing = "";
+                    foreach (string key in Domains.Keys)
+                    {
+                        if (!currentDomains.Contains(((PrincipalContext)Domains[key]).Container))
+                        {
+                            missing += comma + key;
+                        }
+                        comma = ", ";
+                    }
+                    toolStripStatusLabelDomain.Text = "Nicht unterstützte Domains: " + missing;
+                }
+                else
+                {
+                    toolStripStatusLabelDomain.Text = "";
+                }
                 groupBoxMember.Enabled = true;
                 buttonSave.Enabled = false;
                 if (comboBoxMember.Text.Length == 0)
