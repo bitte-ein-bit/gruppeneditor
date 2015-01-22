@@ -254,37 +254,40 @@ namespace Gruppeneditor
                 List<string> groupDomains = new List<string>();
                 DisplayToNameMap.Clear();
 
-                var maxLength = Groups.Max(a => a.DisplayName.Length);
-                string format = "{0, -" + maxLength + "} ({1})";
-                foreach (simpleADObject group in Groups.ToArray())
+                if (Groups.Count > 0)
                 {
-                    if (group.DisplayName.ToLower() == prevGroup.ToLower())
+                    var maxLength = Groups.Max(a => a.DisplayName.Length);
+                    string format = "{0, -" + maxLength + "} ({1})";
+                    foreach (simpleADObject group in Groups.ToArray())
                     {
-                        groupDomains.Add(group.Domain);
-                    }
-                    else
-                    {
-                        if (prevGroup != "" && groupDomains.Count > 0)
+                        if (group.DisplayName.ToLower() == prevGroup.ToLower())
                         {
-                            string text = String.Format(format, prevGroup, String.Join(", ", groupDomains.ToArray()));
-                            comboBoxGruppe.Items.Add(text);
-                            DisplayToNameMap.Add(text, prevGroup);
+                            groupDomains.Add(group.Domain);
                         }
-                        prevGroup = group.DisplayName;
-                        groupDomains = new List<string>();
-                        groupDomains.Add(group.Domain);
+                        else
+                        {
+                            if (prevGroup != "" && groupDomains.Count > 0)
+                            {
+                                string text = String.Format(format, prevGroup, String.Join(", ", groupDomains.ToArray()));
+                                comboBoxGruppe.Items.Add(text);
+                                DisplayToNameMap.Add(text, prevGroup);
+                            }
+                            prevGroup = group.DisplayName;
+                            groupDomains = new List<string>();
+                            groupDomains.Add(group.Domain);
+                        }
                     }
+                    if (prevGroup != "" && groupDomains.Count > 0)
+                    {
+                        string text = String.Format(format, prevGroup, String.Join(", ", groupDomains.ToArray()));
+                        comboBoxGruppe.Items.Add(text);
+                        DisplayToNameMap.Add(text, prevGroup);
+                    }
+                    comboBoxGruppe.Items.Add("bitte wählen");
+                    comboBoxGruppe.SelectedIndexChanged -= this.comboBoxGruppe_SelectedIndexChanged;
+                    comboBoxGruppe.SelectedIndex = comboBoxGruppe.Items.IndexOf("bitte wählen");
+                    comboBoxGruppe.SelectedIndexChanged += this.comboBoxGruppe_SelectedIndexChanged;
                 }
-                if (prevGroup != "" && groupDomains.Count > 0)
-                {
-                    string text = String.Format(format, prevGroup, String.Join(", ", groupDomains.ToArray()));
-                    comboBoxGruppe.Items.Add(text);
-                    DisplayToNameMap.Add(text, prevGroup);
-                }
-                comboBoxGruppe.Items.Add("bitte wählen");
-                comboBoxGruppe.SelectedIndexChanged -= this.comboBoxGruppe_SelectedIndexChanged;
-                comboBoxGruppe.SelectedIndex = comboBoxGruppe.Items.IndexOf("bitte wählen");
-                comboBoxGruppe.SelectedIndexChanged += this.comboBoxGruppe_SelectedIndexChanged;
             }
             catch (Exception e)
             {
